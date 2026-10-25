@@ -8,7 +8,7 @@
 
 # Async web server (visualization/server.py) and LLM HTTP client
 # (core/llm_client.py uses aiohttp.ClientSession for _call_claude/_call_openai).
-aiohttp>=3.9,<4.0
+aiohttp>=3.14.5,<4.0
 
 # Numerical computing (env.py — swarm RL environment).
 numpy>=1.24
