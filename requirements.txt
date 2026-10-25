@@ -11,7 +11,7 @@
 aiohttp>=3.9,<4.0
 
 # Numerical computing (env.py — swarm RL environment).
-numpy>=1.24
+numpy>=2.5.4
 
 # Gymnasium RL environment interface (env.py). `gym` is the legacy fallback
 # import in env.py and does not need to be installed separately.
