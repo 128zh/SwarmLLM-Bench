@@ -1,0 +1,18 @@
+# Tool configuration for Ruff (lint) and pytest. This file intentionally
+# does not define a [project]/[build-system] section, so it does not change
+# how the package is built or installed.
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Conservative rule set: flag only clear defects (undefined names, syntax
+# errors, wrong types, shadowed redefinitions) so lint stays blocking without
+# drowning reviewers in unused-import / style noise. Broaden to E4/E7/F4 once
+# the codebase is clean.
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

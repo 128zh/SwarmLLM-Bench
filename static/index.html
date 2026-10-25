@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蜂群多无人机协同作战仿真系统</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+</head>
+<body>
+<div id="app">
+    <!-- 顶部标题栏（始终可见） -->
+    <header class="topbar">
+        <div class="title">
+            <span class="icon">⚡</span>
+            蜂群多无人机协同作战仿真系统
+        </div>
+        <div class="status-bar">
+            <span class="status-item">Tick: <strong id="tick">0</strong></span>
+            <span class="status-item">运行时间: <strong id="elapsed">0s</strong></span>
+            <span class="status-item">任务状态: <strong id="mission-status" class="badge badge-pending">待命</strong></span>
+            <span class="status-item" id="connection-status">连接中...</span>
+            <span class="status-item voice-controls">
+                <button class="voice-btn" id="voice-listen-btn" title="语音命令 (Ctrl+L)">🎤</button>
+                <button class="voice-btn" id="voice-mute-btn" title="静音 (Ctrl+M)">🔊</button>
+                <span class="voice-transcript" id="voice-transcript-text"></span>
+            </span>
+        </div>
+    </header>
+
+    <!-- 标签页导航 -->
+    <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="battlefield">🗺️ 战场态势</button>
+        <button class="tab-btn" data-tab="scene3d">🌍 3D态势</button>
+        <button class="tab-btn" data-tab="instruments">🛩️ 飞行仪表</button>
+        <button class="tab-btn" data-tab="control">🎮 飞行操控</button>
+        <button class="tab-btn" data-tab="scenario">⚔️ 协同对抗</button>
+        <button class="tab-btn" data-tab="review">📊 评估复盘</button>
+        <button class="tab-btn" data-tab="config">⚙️ 系统配置</button>
+    </nav>
+
+    <!-- 标签页内容 -->
+    <!-- ====== 战场态势标签（原有内容） ====== -->
+    <div class="tab-content active" id="tab-battlefield">
+        <div class="main-layout">
+            <!-- 左侧面板 -->
+            <aside class="sidebar left">
+                <!-- 概览面板 -->
+                <div class="panel">
+                    <div class="panel-header">蜂群概览</div>
+                    <div class="panel-body">
+                        <div class="stat-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">存活无人机</div>
+                                <div class="stat-value" id="alive-uavs">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">损失无人机</div>
+                                <div class="stat-value danger" id="destroyed-uavs">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">已摧毁目标</div>
+                                <div class="stat-value success" id="destroyed-targets">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">剩余目标</div>
+                                <div class="stat-value warning" id="remaining-targets">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">重组网次数</div>
+                                <div class="stat-value" id="reconnect-count">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">领导者变更</div>
+                                <div class="stat-value" id="leader-changes">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 控制面板 -->
+                <div class="panel">
+                    <div class="panel-header">仿真控制</div>
+                    <div class="panel-body">
+                        <div class="control-buttons">
+                            <button class="btn btn-start" id="btn-start">启动仿真</button>
+                            <button class="btn btn-pause" id="btn-pause">暂停</button>
+                            <button class="btn btn-step" id="btn-step">单步执行</button>
+                            <button class="btn btn-reset" id="btn-reset">重置</button>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <button class="btn" id="btn-audio-mute" style="width:100%;border-color:#8b9bb4;">🔊 3D音效: 开</button>
+                        </div>
+                        <hr class="divider">
+                        <div class="fault-section">
+                            <label class="section-label">故障注入测试</label>
+                            <div class="fault-controls">
+                                <button class="btn btn-fault" id="btn-fault">注入随机故障</button>
+                                <select id="destroy-select" class="select-uav"></select>
+                                <button class="btn btn-destroy" id="btn-destroy">摧毁选中UAV</button>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <!-- 环境控制 -->
+                        <div class="env-section">
+                            <label class="section-label">环境设置</label>
+                            <div class="env-controls">
+                                <div class="env-row">
+                                    <span>风力</span>
+                                    <input type="range" id="env-wind" min="0" max="9" value="0" title="0-9级风力">
+                                    <span id="env-wind-val">0级</span>
+                                </div>
+                                <div class="env-row">
+                                    <span>降水</span>
+                                    <select id="env-precip" class="select-uav">
+                                        <option value="none">无</option>
+                                        <option value="rain">雨</option>
+                                        <option value="snow">雪</option>
+                                    </select>
+                                </div>
+                                <div class="env-row">
+                                    <span>光照</span>
+                                    <select id="env-lighting" class="select-uav">
+                                        <option value="day">白天</option>
+                                        <option value="dusk">黄昏</option>
+                                        <option value="night">夜间</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <!-- 导出报告 -->
+                        <div class="env-section">
+                            <label class="section-label">导出训练结果</label>
+                            <div class="control-buttons" style="grid-template-columns:1fr 1fr;gap:4px;">
+                                <button class="btn btn-start" id="btn-export-json" style="font-size:10px;">JSON</button>
+                                <button class="btn btn-pause" id="btn-export-csv" style="font-size:10px;">CSV</button>
+                                <button class="btn btn-step" id="btn-export-html" style="font-size:10px;">HTML报告</button>
+                                <button class="btn btn-fault" id="btn-export-all" style="font-size:10px;">全部格式</button>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <!-- 动态生成UAV -->
+                        <div class="env-section">
+                            <label class="section-label">生成我方无人机</label>
+                            <div class="env-controls">
+                                <div class="env-row">
+                                    <span>角色</span>
+                                    <select id="spawn-role" class="select-uav">
+                                        <option value="striker">攻击机</option>
+                                        <option value="scout">侦察机</option>
+                                        <option value="relay">中继机</option>
+                                        <option value="leader">指挥机</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-start" id="btn-spawn-uav" style="width:100%;margin-top:4px;">生成无人机</button>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <!-- 拦截集群控制 -->
+                        <div class="env-section">
+                            <label class="section-label">拦截集群威胁</label>
+                            <div class="env-controls">
+                                <div class="env-row">
+                                    <span>难度</span>
+                                    <select id="int-difficulty" class="select-uav">
+                                        <option value="easy">简单 (2架)</option>
+                                        <option value="normal" selected>普通 (4架)</option>
+                                        <option value="hard">困难 (6架)</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-fault" id="btn-int-config" style="width:100%;margin-top:4px;">应用拦截配置</button>
+                                <button class="btn btn-destroy" id="btn-int-spawn" style="width:100%;margin-top:2px;">手动生成拦截器</button>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <!-- OODA状态 -->
+                        <div class="ooda-mini" id="ooda-mini">
+                            <div class="ooda-mini-header">OODA 决策循环</div>
+                            <div class="ooda-mini-body" id="ooda-mini-body">
+                                <span class="ooda-stat">优势: <strong id="ooda-advantage">--</strong></span>
+                                <span class="ooda-stat">评级: <strong id="ooda-rating">--</strong></span>
+                                <span class="ooda-stat">蓝方: <strong id="ooda-blue">--</strong>ms</span>
+                                <span class="ooda-stat">红方: <strong id="ooda-red">--</strong>ms</span>
+                                <span class="ooda-stat" id="ooda-status">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通信统计 -->
+                <div class="panel">
+                    <div class="panel-header">通信系统</div>
+                    <div class="panel-body">
+                        <div class="comm-stats" id="comm-stats">
+                            <div class="comm-row"><span>消息发送</span><strong id="comm-sent">0</strong></div>
+                            <div class="comm-row"><span>消息投递</span><strong id="comm-delivered">0</strong></div>
+                            <div class="comm-row"><span>消息丢弃</span><strong id="comm-dropped">0</strong></div>
+                            <div class="comm-row"><span>队列大小</span><strong id="comm-queue">0</strong></div>
+                            <div class="comm-row"><span>峰值队列</span><strong id="comm-peak">0</strong></div>
+                            <div class="comm-row"><span>平均延迟</span><strong id="comm-latency">0ms</strong></div>
+                        </div>
+                        <div class="priority-bar">
+                            <label>优先级分布</label>
+                            <div class="bar-container">
+                                <div class="bar-segment high" id="bar-high" title="高优先级"></div>
+                                <div class="bar-segment medium" id="bar-medium" title="中优先级"></div>
+                                <div class="bar-segment low" id="bar-low" title="低优先级"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中央地图区域 -->
+            <main class="center">
+                <div class="panel map-panel">
+                    <div class="panel-header">
+                        战场态势图
+                        <span class="map-legend">
+                            <span class="legend-item"><span class="dot dot-leader"></span>指挥机</span>
+                            <span class="legend-item"><span class="dot dot-scout"></span>侦察机</span>
+                            <span class="legend-item"><span class="dot dot-striker"></span>攻击机</span>
+                            <span class="legend-item"><span class="dot dot-relay"></span>中继机</span>
+                            <span class="legend-item"><span class="dot dot-target"></span>目标</span>
+                            <span class="legend-item"><span class="dot dot-destroyed"></span>摧毁</span>
+                        </span>
+                    </div>
+                    <div class="panel-body map-body">
+                        <canvas id="battle-map" width="900" height="600"></canvas>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">蜂群网络拓扑</div>
+                    <div class="panel-body">
+                        <canvas id="network-topology" width="900" height="250"></canvas>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右侧面板 -->
+            <aside class="sidebar right">
+                <div class="panel">
+                    <div class="panel-header">无人机列表</div>
+                    <div class="panel-body">
+                        <div class="uav-list" id="uav-list"></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">事件日志</div>
+                    <div class="panel-body">
+                        <div class="event-log" id="event-log"></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- ====== 3D态势标签 ====== -->
+    <div class="tab-content" id="tab-scene3d">
+        <div class="scene3d-full" id="scene3d-container">
+            <div class="scene3d-hud" id="scene3d-hud">
+                <span class="hud-item">视角: <strong id="hud-view">自由</strong></span>
+                <span class="hud-item">夜视: <strong id="hud-night">关</strong> (N)</span>
+                <span class="hud-item">红外: <strong id="hud-ir">关</strong> (I)</span>
+                <span class="hud-item">雷达: <strong id="hud-radar">开</strong> (R)</span>
+                <span class="hud-item">1:俯视 2:跟随 3:FPV</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 飞行仪表标签 ====== -->
+    <div class="tab-content" id="tab-instruments">
+        <div class="instruments-fullpage" id="instruments-container"></div>
+    </div>
+
+    <!-- ====== 飞行操控标签 ====== -->
+    <div class="tab-content" id="tab-control">
+        <div class="control-layout">
+            <div class="control-left">
+                <div class="panel">
+                    <div class="panel-header">虚拟遥控器</div>
+                    <div class="panel-body">
+                        <div id="remote-control-container">
+                            <div class="rc-placeholder">
+                                <p style="color:#8b9bb4;text-align:center;padding:40px;">
+                                    🎮 飞行操控模块将在 Phase 2 实现<br>
+                                    <small>双摇杆控制 | GPS/姿态模式 | 载荷操作</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-center">
+                <div class="panel map-panel">
+                    <div class="panel-header">航线规划</div>
+                    <div class="panel-body map-body">
+                        <div id="planning-container" style="width:100%;height:100%;">
+                            <canvas id="planning-map" width="800" height="500"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-right">
+                <div class="panel">
+                    <div class="panel-header">载荷控制</div>
+                    <div class="panel-body">
+                        <div id="payload-container">
+                            <p style="color:#8b9bb4;text-align:center;padding:20px;">
+                                载荷控制模块将在 Phase 2 实现
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 协同对抗标签 ====== -->
+    <div class="tab-content" id="tab-scenario">
+        <div class="scenario-layout">
+            <div class="panel" style="flex:1;">
+                <div class="panel-header">场景模板</div>
+                <div class="panel-body">
+                    <div id="scenario-container">
+                        <p style="color:#8b9bb4;text-align:center;padding:40px;">
+                            ⚔️ 多机协同与实战对抗模块将在 Phase 3 实现<br>
+                            <small>红蓝对抗 | 场景模板 | 人机协同</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 评估复盘标签 ====== -->
+    <div class="tab-content" id="tab-review">
+        <div class="review-layout">
+            <div class="review-left">
+                <div class="panel">
+                    <div class="panel-header">回放控制</div>
+                    <div class="panel-body">
+                        <div id="replay-container">
+                            <p style="color:#8b9bb4;text-align:center;padding:40px;">
+                                📊 数据评估与复盘模块将在 Phase 4 实现<br>
+                                <small>录制回放 | 雷达图评分 | 轨迹分析</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="review-center">
+                <div class="panel" style="flex:1;">
+                    <div class="panel-header">评估报告</div>
+                    <div class="panel-body">
+                        <div id="assessment-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 系统配置标签 ====== -->
+    <div class="tab-content" id="tab-config">
+        <div class="config-layout">
+            <div class="config-left">
+                <div class="panel">
+                    <div class="panel-header">无人机机型</div>
+                    <div class="panel-body">
+                        <div id="config-model-container">
+                            <p style="color:#8b9bb4;text-align:center;padding:40px;">
+                                ⚙️ 教务管理与系统配置模块将在 Phase 5 实现<br>
+                                <small>机型选择 | 物理参数 | PID调参</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="config-right">
+                <div class="panel">
+                    <div class="panel-header">参数配置</div>
+                    <div class="panel-body">
+                        <div id="config-params-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /#app -->
+
+<!-- 按依赖顺序加载脚本 -->
+<script src="/static/js/core.js"></script>
+<script src="/static/js/battlefield3d.js"></script>
+<script src="/static/js/environment.js"></script>
+<script src="/static/js/instruments.js"></script>
+<script src="/static/js/ir_view.js"></script>
+<script src="/static/js/alerts.js"></script>
+<script type="module" src="/static/js/scene3d.js"></script>
+<script src="/static/js/ooda_panel.js"></script>
+<script src="/static/js/voice_commander.js"></script>
+<script src="/static/audio.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

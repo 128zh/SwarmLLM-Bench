@@ -1,0 +1,22 @@
+# SwarmLLM-Bench — runtime dependencies
+#
+# Canonical, installable manifest for this project. It replaces a previous
+# local Anaconda `pip freeze` export that contained machine-specific `file://`
+# URLs and could not be installed by CI runners or other users.
+#
+# Only third-party libraries actually imported by the code are listed here.
+
+# Async web server (visualization/server.py) and LLM HTTP client
+# (core/llm_client.py uses aiohttp.ClientSession for _call_claude/_call_openai).
+aiohttp>=3.9,<4.0
+
+# Numerical computing (env.py — swarm RL environment).
+numpy>=1.24
+
+# Gymnasium RL environment interface (env.py). `gym` is the legacy fallback
+# import in env.py and does not need to be installed separately.
+gymnasium>=0.29
+
+# Optional — RL training with Stable-Baselines3. Only referenced in the
+# docstrings/examples of env.py and main.py; uncomment to run PPO training:
+# stable-baselines3>=2.0

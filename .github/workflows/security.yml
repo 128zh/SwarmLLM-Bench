@@ -1,0 +1,66 @@
+name: Security
+
+# Triggers:
+#  - automatically on every pull request
+#  - on every push to main
+#  - weekly scheduled scan (dependency CVEs drift between releases)
+#  - manually via the "Run workflow" button
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 0 * * 0" # every Sunday at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Static application security testing (SAST) — CodeQL for Python.
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # required to upload results to the Security tab
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # Increase for deeper analysis on complex/large codebases.
+          queries: security-and-quality
+
+      # Python needs no compile step; analyze extracts and scans the source.
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+  # Software composition analysis (SCA) — scans dependencies for known CVEs.
+  pip-audit:
+    name: Dependency Scan (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+
+      # Fails the build (non-zero exit) if any known vulnerability is found.
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt

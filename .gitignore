@@ -1,0 +1,49 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+develop-eggs/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+wheels/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+ENV/
+env/
+
+# ---- IDEs / editors ----
+.idea/
+*.iml
+.vscode/
+
+# ---- Testing / coverage / lint ----
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Project runtime output (generated, do not commit) ----
+exports/
+recordings/
+scenarios/
+nul_
+*.log
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
