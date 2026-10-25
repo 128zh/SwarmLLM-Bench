@@ -9,6 +9,7 @@ Web可视化服务器
 import asyncio
 import json
 import os
+from typing import Optional
 from aiohttp import web, WSMsgType
 
 from config import WEB_HOST, WEB_PORT, WS_BROADCAST_INTERVAL
