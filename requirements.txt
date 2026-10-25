@@ -15,7 +15,7 @@ numpy>=1.24
 
 # Gymnasium RL environment interface (env.py). `gym` is the legacy fallback
 # import in env.py and does not need to be installed separately.
-gymnasium>=0.29
+gymnasium>=1.4.0
 
 # Optional — RL training with Stable-Baselines3. Only referenced in the
 # docstrings/examples of env.py and main.py; uncomment to run PPO training:
